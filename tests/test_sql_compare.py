@@ -1,5 +1,5 @@
 import unittest
-from sql_compare import canonicalize_joins
+from sql_compare import canonicalize_joins, build_difference_summary
 
 class TestCanonicalizeJoins(unittest.TestCase):
     def test_basic_inner_join_reorder(self):
@@ -49,13 +49,7 @@ class TestCanonicalizeJoins(unittest.TestCase):
     def test_full_outer_join_allow_reorder(self):
         """FULL OUTER joins SHOULD be reordered if allow_full_outer is True."""
         sql = "SELECT * FROM t1 FULL JOIN t3 ON x FULL JOIN t2 ON y"
-        # Note: 'FULL JOIN' is normalized to 'FULL JOIN' (OUTER is optional/removed if not handled?)
-        # Let's check implementation: seg_type replaces " OUTER", so "FULL OUTER JOIN" -> "FULL JOIN".
-        # Then _rebuild uses seg_type + " JOIN". So "FULL JOIN".
-        # If input has "FULL OUTER JOIN", output will have "FULL JOIN".
-        # We should expect "FULL JOIN".
         expected = "SELECT * FROM t1 FULL JOIN t2 ON y FULL JOIN t3 ON x"
-        # However, if input is already "FULL JOIN", it stays "FULL JOIN".
         self.assertEqual(canonicalize_joins(sql, allow_full_outer=True), expected)
 
     def test_cross_join_reorder(self):
@@ -69,6 +63,96 @@ class TestCanonicalizeJoins(unittest.TestCase):
         sql = "SELECT * FROM t1 NATURAL JOIN t3 NATURAL JOIN t2"
         expected = "SELECT * FROM t1 NATURAL JOIN t2 NATURAL JOIN t3"
         self.assertEqual(canonicalize_joins(sql), expected)
+
+
+class TestBuildDifferenceSummary(unittest.TestCase):
+    def test_no_differences(self):
+        sql = "SELECT a, b FROM t WHERE x = 1"
+        summary = build_difference_summary(
+            sql, sql, sql, sql,
+            ["SELECT", "a", ",", "b", "FROM", "t", "WHERE", "x", "=", "1"],
+            ["SELECT", "a", ",", "b", "FROM", "t", "WHERE", "x", "=", "1"],
+            enable_join_reorder=True, allow_full_outer=False, allow_left=False
+        )
+        self.assertEqual(summary, ["No structural differences detected beyond normalization."])
+
+    def test_select_differences(self):
+        sql_a = "SELECT a, b FROM t"
+        sql_b = "SELECT a, c FROM t"
+        summary = build_difference_summary(
+            sql_a, sql_b, sql_a, sql_b,
+            ["SELECT", "a", ",", "b", "FROM", "t"],
+            ["SELECT", "a", ",", "c", "FROM", "t"],
+            enable_join_reorder=True, allow_full_outer=False, allow_left=False
+        )
+        self.assertIn("SELECT list differs: items only in SQL1: 1", summary)
+        self.assertIn("SELECT list differs: items only in SQL2: 1", summary)
+        self.assertTrue(any("Token-level changes" in s for s in summary))
+
+    def test_select_order_differs(self):
+        sql_a = "SELECT a, b FROM t"
+        sql_b = "SELECT b, a FROM t"
+        summary = build_difference_summary(
+            sql_a, sql_b, sql_a, sql_b,
+            ["SELECT", "a", ",", "b", "FROM", "t"],
+            ["SELECT", "b", ",", "a", "FROM", "t"],
+            enable_join_reorder=True, allow_full_outer=False, allow_left=False
+        )
+        self.assertIn("SELECT list order differs (same items, different order).", summary)
+        self.assertTrue(any("Token-level changes" in s for s in summary))
+
+    def test_where_differences(self):
+        sql_a = "SELECT a FROM t WHERE x = 1 AND y = 2"
+        sql_b = "SELECT a FROM t WHERE x = 1 AND z = 3"
+        summary = build_difference_summary(
+            sql_a, sql_b, sql_a, sql_b,
+            [], [],
+            enable_join_reorder=True, allow_full_outer=False, allow_left=False
+        )
+        self.assertIn("WHERE AND terms differ: terms only in SQL1: 1", summary)
+        self.assertIn("WHERE AND terms differ: terms only in SQL2: 1", summary)
+
+    def test_where_order_differs(self):
+        sql_a = "SELECT a FROM t WHERE x = 1 AND y = 2"
+        sql_b = "SELECT a FROM t WHERE y = 2 AND x = 1"
+        summary = build_difference_summary(
+            sql_a, sql_b, sql_a, sql_b,
+            [], [],
+            enable_join_reorder=True, allow_full_outer=False, allow_left=False
+        )
+        self.assertIn("WHERE AND term order differs (same terms, different order).", summary)
+
+    def test_join_differences(self):
+        sql_a = "SELECT a FROM t JOIN x ON t.id=x.id"
+        sql_b = "SELECT a FROM t JOIN y ON t.id=y.id"
+        summary = build_difference_summary(
+            sql_a, sql_b, sql_a, sql_b,
+            [], [],
+            enable_join_reorder=True, allow_full_outer=False, allow_left=False
+        )
+        self.assertIn("Reorderable JOIN components differ: 1 only in SQL1.", summary)
+        self.assertIn("Reorderable JOIN components differ: 1 only in SQL2.", summary)
+
+    def test_join_order_differs(self):
+        sql_a = "SELECT a FROM t JOIN x ON t.id=x.id JOIN y ON t.id=y.id"
+        sql_b = "SELECT a FROM t JOIN y ON t.id=y.id JOIN x ON t.id=x.id"
+        summary = build_difference_summary(
+            sql_a, sql_b, sql_a, sql_b,
+            [], [],
+            enable_join_reorder=True, allow_full_outer=False, allow_left=False
+        )
+        self.assertIn("Reorderable JOIN segment order differs (same components, different order).", summary)
+
+    def test_join_reorder_disabled(self):
+        sql_a = "SELECT a FROM t JOIN x ON t.id=x.id JOIN y ON t.id=y.id"
+        sql_b = "SELECT a FROM t JOIN y ON t.id=y.id JOIN x ON t.id=x.id"
+        summary = build_difference_summary(
+            sql_a, sql_b, sql_a, sql_b,
+            [], [],
+            enable_join_reorder=False, allow_full_outer=False, allow_left=False
+        )
+        self.assertIn("Join reordering is disabled; join order is considered significant in comparisons.", summary)
+
 
 if __name__ == '__main__':
     unittest.main()
