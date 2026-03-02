@@ -859,16 +859,25 @@ class SQLCompareGUI:
         self.allow_full = tk.BooleanVar(value=False)
         self.allow_left = tk.BooleanVar(value=False)
 
+    def _build_file_selection_frame(self, root, pad):
+        # Backwards-compatible wrapper: layout now handled by _create_top_frame.
         self._create_top_frame()
+
+    def _build_mode_frame(self, root, pad):
+        # Backwards-compatible wrapper for mode controls.
         self._create_mode_frame()
+
+    def _build_flags_frame(self, root, pad):
+        # Backwards-compatible wrapper for flag controls.
         self._create_flags_frame()
+
+    def _build_buttons_frame(self, root, pad):
+        # Backwards-compatible wrapper for action buttons.
         self._create_buttons_frame()
+
+    def _build_output_frame(self, root, pad):
+        # Backwards-compatible wrapper for output area.
         self._create_output_frame()
-
-        ttk.Label(root, text="Tip: CLI supports --strings/--stdin, --mode, --ignore-whitespace, --join-reorder/--no-join-reorder, --allow-full-outer-reorder, --allow-left-reorder, and --report.").pack(anchor="w", padx=8, pady=4)
-
-        self.last_result = None  # cache for report generation
-
     def _create_top_frame(self):
         frm_top = ttk.Frame(self.root); frm_top.pack(fill="x", **self._PAD_OPTIONS)
         ttk.Label(frm_top, text="SQL File 1:").grid(row=0, column=0, sticky="w")
