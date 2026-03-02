@@ -137,13 +137,14 @@ class TestNormalizeSql(unittest.TestCase):
 
     def test_remove_trailing_semicolon(self):
         """Test removing trailing semicolon."""
-        sql = "SELECT * FROM my_table;"
+        cases = {
+            "with_semicolon": "SELECT * FROM my_table;",
+            "with_semicolon_and_spaces": "SELECT * FROM my_table ;  ",
+        }
         expected = "SELECT * FROM MY_TABLE"
-        self.assertEqual(normalize_sql(sql), expected)
-
-        sql_with_spaces = "SELECT * FROM my_table ;  "
-        expected_with_spaces = "SELECT * FROM MY_TABLE"
-        self.assertEqual(normalize_sql(sql_with_spaces), expected_with_spaces)
+        for name, sql in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(normalize_sql(sql), expected)
 
     def test_preserve_quotes(self):
         """Test that content inside quotes is NOT uppercased."""
