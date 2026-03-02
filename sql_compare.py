@@ -21,7 +21,6 @@ CLI Examples:
   type queries.txt | python sql_compare.py --stdin --mode canonical --allow-full-outer-reorder --allow-left-reorder
 """
 
-import itertools
 import argparse
 import difflib
 import os
@@ -844,25 +843,13 @@ table.diff thead th {{ background: #f6f8fa; }}
 # =============================
 
 class SQLCompareGUI:
+    _PAD_OPTIONS = {"padx": 8, "pady": 6}
+
     def __init__(self, root):
         self.root = root
         root.title("SQL Compare")
         root.geometry("980x780")
 
-        self._init_vars()
-
-        pad = {"padx": 8, "pady": 6}
-        self._build_file_selection_frame(root, pad)
-        self._build_mode_frame(root, pad)
-        self._build_flags_frame(root, pad)
-        self._build_buttons_frame(root, pad)
-        self._build_output_frame(root, pad)
-
-        ttk.Label(root, text="Tip: CLI supports --strings/--stdin, --mode, --ignore-whitespace, --join-reorder/--no-join-reorder, --allow-full-outer-reorder, --allow-left-reorder, and --report.").pack(anchor="w", padx=8, pady=4)
-
-        self.last_result = None  # cache for report generation
-
-    def _init_vars(self):
         self.sql1_path = tk.StringVar()
         self.sql2_path = tk.StringVar()
         self.mode = tk.StringVar(value="both")
@@ -872,7 +859,16 @@ class SQLCompareGUI:
         self.allow_left = tk.BooleanVar(value=False)
 
     def _build_file_selection_frame(self, root, pad):
-        frm_top = ttk.Frame(root); frm_top.pack(fill="x", **pad)
+        # Backwards-compatible wrapper: layout now handled by _create_top_frame.
+        self._create_top_frame()
+
+    def _build_mode_frame(self, root, pad):
+        # Backwards-compatible wrapper for mode controls.
+    def _build_output_frame(self, root, pad):
+        # Backwards-compatible wrapper for output area.
+        self._create_output_frame()
+    def _create_top_frame(self):
+        frm_top = ttk.Frame(self.root); frm_top.pack(fill="x", **self._PAD_OPTIONS)
         ttk.Label(frm_top, text="SQL File 1:").grid(row=0, column=0, sticky="w")
         e1 = ttk.Entry(frm_top, textvariable=self.sql1_path, width=90); e1.grid(row=0, column=1, sticky="we", padx=(8, 8))
         ttk.Button(frm_top, text="Browse...", command=self.browse1).grid(row=0, column=2)
@@ -881,15 +877,15 @@ class SQLCompareGUI:
         ttk.Button(frm_top, text="Browse...", command=self.browse2).grid(row=1, column=2)
         frm_top.columnconfigure(1, weight=1)
 
-    def _build_mode_frame(self, root, pad):
-        frm_mode = ttk.Frame(root); frm_mode.pack(fill="x", **pad)
+    def _create_mode_frame(self):
+        frm_mode = ttk.Frame(self.root); frm_mode.pack(fill="x", **self._PAD_OPTIONS)
         ttk.Label(frm_mode, text="Mode:").pack(side="left")
         for text, val in [("Both", "both"), ("Exact", "exact"), ("Canonical", "canonical")]:
             ttk.Radiobutton(frm_mode, text=text, value=val, variable=self.mode).pack(side="left", padx=6)
         ttk.Checkbutton(frm_mode, text="Ignore whitespace differences", variable=self.ignore_ws).pack(side="left", padx=16)
 
-    def _build_flags_frame(self, root, pad):
-        frm_flags = ttk.Frame(root); frm_flags.pack(fill="x", **pad)
+    def _create_flags_frame(self):
+        frm_flags = ttk.Frame(self.root); frm_flags.pack(fill="x", **self._PAD_OPTIONS)
         self.chk_enable_join = ttk.Checkbutton(frm_flags, text="Enable join reordering", variable=self.enable_join, command=self._toggle_join_options)
         self.chk_enable_join.pack(side="left", padx=6)
         self.chk_full = ttk.Checkbutton(frm_flags, text="Allow FULL OUTER JOIN reordering (heuristic)", variable=self.allow_full)
@@ -898,15 +894,15 @@ class SQLCompareGUI:
         self.chk_left.pack(side="left", padx=6)
         self._toggle_join_options()  # set initial state
 
-    def _build_buttons_frame(self, root, pad):
-        frm_btns = ttk.Frame(root); frm_btns.pack(fill="x", **pad)
+    def _create_buttons_frame(self):
+        frm_btns = ttk.Frame(self.root); frm_btns.pack(fill="x", **self._PAD_OPTIONS)
         ttk.Button(frm_btns, text="Compare", command=self.do_compare).pack(side="left")
         ttk.Button(frm_btns, text="Copy Output", command=self.copy_output).pack(side="left", padx=6)
         ttk.Button(frm_btns, text="Clear", command=self.clear_output).pack(side="left", padx=6)
         ttk.Button(frm_btns, text="Save Report…", command=self.save_report).pack(side="left", padx=6)
 
-    def _build_output_frame(self, root, pad):
-        frm_out = ttk.Frame(root); frm_out.pack(fill="both", expand=True, **pad)
+    def _create_output_frame(self):
+        frm_out = ttk.Frame(self.root); frm_out.pack(fill="both", expand=True, **self._PAD_OPTIONS)
         self.txt = tk.Text(frm_out, wrap="none", font=("Consolas", 10))
         xscroll = ttk.Scrollbar(frm_out, orient="horizontal", command=self.txt.xview)
         yscroll = ttk.Scrollbar(frm_out, orient="vertical", command=self.txt.yview)
@@ -915,6 +911,7 @@ class SQLCompareGUI:
         yscroll.grid(row=0, column=1, sticky="ns")
         xscroll.grid(row=1, column=0, sticky="ew")
         frm_out.rowconfigure(0, weight=1); frm_out.columnconfigure(0, weight=1)
+
     def _toggle_join_options(self):
         # Enable/disable dependent flags based on global join toggle
         if self.enable_join.get():
