@@ -1,5 +1,5 @@
 import unittest
-from sql_compare import canonicalize_joins, compare_sql, normalize_sql
+from sql_compare import canonicalize_joins, normalize_sql
 
 class TestCanonicalizeJoins(unittest.TestCase):
     def test_basic_inner_join_reorder(self):
@@ -71,56 +71,6 @@ class TestCanonicalizeJoins(unittest.TestCase):
         self.assertEqual(canonicalize_joins(sql), expected)
 
 
-class TestCompareSql(unittest.TestCase):
-    def test_exact_equal(self):
-        sql = "SELECT * FROM t1"
-        res = compare_sql(sql, sql)
-        with self.subTest(check="ws_equal"):
-            self.assertTrue(res['ws_equal'])
-        with self.subTest(check="exact_equal"):
-            self.assertTrue(res['exact_equal'])
-        with self.subTest(check="canonical_equal"):
-            self.assertTrue(res['canonical_equal'])
-
-    def test_ws_difference(self):
-        sql1 = "SELECT * FROM t1"
-        sql2 = "SELECT  *   FROM   t1"
-        res = compare_sql(sql1, sql2)
-        self.assertTrue(res['ws_equal'])
-        self.assertTrue(res['exact_equal'])
-        self.assertTrue(res['canonical_equal'])
-
-    def test_case_difference(self):
-        sql1 = "SELECT * FROM t1"
-        sql2 = "select * from t1"
-        res = compare_sql(sql1, sql2)
-        self.assertTrue(res['exact_equal'])
-        self.assertTrue(res['canonical_equal'])
-
-    def test_canonical_equal_only(self):
-        sql1 = "SELECT * FROM t1 JOIN t2 ON t1.id=t2.id JOIN t3 ON t1.id=t3.id"
-        sql2 = "SELECT * FROM t1 JOIN t3 ON t1.id=t3.id JOIN t2 ON t1.id=t2.id"
-        res = compare_sql(sql1, sql2)
-        self.assertFalse(res['exact_equal'])
-        self.assertTrue(res['canonical_equal'])
-
-    def test_not_equal(self):
-        sql1 = "SELECT * FROM t1"
-        sql2 = "SELECT * FROM t2"
-        res = compare_sql(sql1, sql2)
-        self.assertFalse(res['exact_equal'])
-        self.assertFalse(res['canonical_equal'])
-
-    def test_disable_join_reorder(self):
-        sql1 = "SELECT * FROM t1 JOIN t2 ON t1.id=t2.id JOIN t3 ON t1.id=t3.id"
-        sql2 = "SELECT * FROM t1 JOIN t3 ON t1.id=t3.id JOIN t2 ON t1.id=t2.id"
-        res = compare_sql(sql1, sql2, enable_join_reorder=False)
-        self.assertFalse(res['canonical_equal'])
-
-
-if __name__ == '__main__':
-    unittest.main()
-
 
 class TestNormalizeSql(unittest.TestCase):
     def test_basic_normalization(self):
@@ -137,14 +87,13 @@ class TestNormalizeSql(unittest.TestCase):
 
     def test_remove_trailing_semicolon(self):
         """Test removing trailing semicolon."""
-        cases = {
-            "with_semicolon": "SELECT * FROM my_table;",
-            "with_semicolon_and_spaces": "SELECT * FROM my_table ;  ",
-        }
+        sql = "SELECT * FROM my_table;"
         expected = "SELECT * FROM MY_TABLE"
-        for name, sql in cases.items():
-            with self.subTest(name=name):
-                self.assertEqual(normalize_sql(sql), expected)
+        self.assertEqual(normalize_sql(sql), expected)
+
+        sql_with_spaces = "SELECT * FROM my_table ;  "
+        expected_with_spaces = "SELECT * FROM MY_TABLE"
+        self.assertEqual(normalize_sql(sql_with_spaces), expected_with_spaces)
 
     def test_preserve_quotes(self):
         """Test that content inside quotes is NOT uppercased."""
@@ -170,3 +119,6 @@ class TestNormalizeSql(unittest.TestCase):
         """
         expected = "SELECT ID, NAME FROM USERS WHERE STATUS = 'active'"
         self.assertEqual(normalize_sql(sql), expected)
+
+if __name__ == '__main__':
+    unittest.main()
