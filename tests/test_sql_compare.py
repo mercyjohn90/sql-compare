@@ -72,41 +72,35 @@ class TestCanonicalizeJoins(unittest.TestCase):
 
 
 class TestStripSqlComments(unittest.TestCase):
-    def test_single_line_comment(self):
-        """Should strip single line comment starting with --."""
-        sql = "-- this is a comment\nSELECT * FROM t1;"
-        expected = "\nSELECT * FROM t1;"
-        self.assertEqual(strip_sql_comments(sql), expected)
+    def test_strip_sql_comments(self):
+        """Should correctly strip various types of SQL comments."""
+        test_cases = [
+            ("Should strip single line comment starting with --.",
+             "-- this is a comment\nSELECT * FROM t1;",
+             "\nSELECT * FROM t1;"),
+            ("Should strip inline comment at the end of a line.",
+             "SELECT * FROM t1; -- comment here",
+             "SELECT * FROM t1; "),
+            ("Should strip block comment on a single line.",
+             "SELECT /* comment */ * FROM t1;",
+             "SELECT  * FROM t1;"),
+            ("Should strip block comment spanning multiple lines.",
+             "SELECT /* \n multi \n line \n comment \n */ * FROM t1;",
+             "SELECT  * FROM t1;"),
+            ("Should strip multiple comments of different types.",
+             "/* start */ SELECT * FROM t1; -- end comment",
+             " SELECT * FROM t1; "),
+            ("Should return the same string if there are no comments.",
+             "SELECT * FROM t1;",
+             "SELECT * FROM t1;"),
+            ("Should not strip comment-like text inside string literals.",
+             "SELECT 'hello -- world' as literal, 'and /* this */' as another;",
+             "SELECT 'hello -- world' as literal, 'and /* this */' as another;"),
+        ]
 
-    def test_inline_comment(self):
-        """Should strip inline comment at the end of a line."""
-        sql = "SELECT * FROM t1; -- comment here"
-        expected = "SELECT * FROM t1; "
-        self.assertEqual(strip_sql_comments(sql), expected)
-
-    def test_block_comment_single_line(self):
-        """Should strip block comment on a single line."""
-        sql = "SELECT /* comment */ * FROM t1;"
-        expected = "SELECT  * FROM t1;"
-        self.assertEqual(strip_sql_comments(sql), expected)
-
-    def test_block_comment_multi_line(self):
-        """Should strip block comment spanning multiple lines."""
-        sql = "SELECT /* \n multi \n line \n comment \n */ * FROM t1;"
-        expected = "SELECT  * FROM t1;"
-        self.assertEqual(strip_sql_comments(sql), expected)
-
-    def test_multiple_comments(self):
-        """Should strip multiple comments of different types."""
-        sql = "/* start */ SELECT * FROM t1; -- end comment"
-        expected = " SELECT * FROM t1; "
-        self.assertEqual(strip_sql_comments(sql), expected)
-
-    def test_no_comments(self):
-        """Should return the same string if there are no comments."""
-        sql = "SELECT * FROM t1;"
-        expected = "SELECT * FROM t1;"
-        self.assertEqual(strip_sql_comments(sql), expected)
+        for doc, sql, expected in test_cases:
+            with self.subTest(msg=doc):
+                self.assertEqual(strip_sql_comments(sql), expected)
 
 if __name__ == '__main__':
 
