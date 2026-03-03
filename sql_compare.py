@@ -904,7 +904,8 @@ class SQLCompareGUI:
         self._toggle_join_options()  # set initial state
 
     def _create_buttons_frame(self, pad):
-        frm_btns = ttk.Frame(self.root); frm_btns.pack(fill="x", **pad)
+        frm_btns = ttk.Frame(self.root)
+        frm_btns.pack(fill="x", **pad)
         ttk.Button(frm_btns, text="Compare", command=self.do_compare).pack(side="left")
         ttk.Button(frm_btns, text="Copy Output", command=self.copy_output).pack(side="left", padx=6)
         ttk.Button(frm_btns, text="Clear", command=self.clear_output).pack(side="left", padx=6)
