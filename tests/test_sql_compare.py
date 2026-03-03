@@ -75,16 +75,26 @@ class TestParseArgs(unittest.TestCase):
     def test_parse_args_no_arguments(self):
         """parse_args with no arguments should return default values."""
         args = parse_args([])
-        self.assertEqual(args.files, [])
-        self.assertIsNone(args.strings)
-        self.assertFalse(args.stdin)
-        self.assertEqual(args.mode, 'both')
-        self.assertFalse(args.ignore_whitespace)
-        self.assertTrue(args.join_reorder)
-        self.assertFalse(args.allow_full_outer_reorder)
-        self.assertFalse(args.allow_left_reorder)
-        self.assertIsNone(args.report)
-        self.assertEqual(args.report_format, 'html')
+        with self.subTest(param="files"):
+            self.assertEqual(args.files, [])
+        with self.subTest(param="strings"):
+            self.assertIsNone(args.strings)
+        with self.subTest(param="stdin"):
+            self.assertFalse(args.stdin)
+        with self.subTest(param="mode"):
+            self.assertEqual(args.mode, 'both')
+        with self.subTest(param="ignore_whitespace"):
+            self.assertFalse(args.ignore_whitespace)
+        with self.subTest(param="join_reorder"):
+            self.assertTrue(args.join_reorder)
+        with self.subTest(param="allow_full_outer_reorder"):
+            self.assertFalse(args.allow_full_outer_reorder)
+        with self.subTest(param="allow_left_reorder"):
+            self.assertFalse(args.allow_left_reorder)
+        with self.subTest(param="report"):
+            self.assertIsNone(args.report)
+        with self.subTest(param="report_format"):
+            self.assertEqual(args.report_format, 'html')
 
 class TestNormalizeSql(unittest.TestCase):
     def test_basic_normalization(self):
