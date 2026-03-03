@@ -36,7 +36,6 @@ WHITESPACE_REGEX = re.compile(r'\s+')
 
 
 # --- Optional GUI imports guarded ---
-
 try:
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
@@ -48,8 +47,11 @@ CLAUSE_TERMINATORS = (
     "QUALIFY", "WINDOW", "UNION", "INTERSECT", "EXCEPT"
 )
 
+
+# =============================
 # Normalization & Utilities
 # =============================
+
 
 MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -67,6 +69,7 @@ def safe_read_file(path_str: str) -> str:
     return p.read_text(encoding="utf-8", errors="ignore")
 
 def strip_sql_comments(s: str) -> str:
+
     """Remove -- line comments and /* ... */ block comments (non-nested)."""
     s = re.sub(r"/\*.*?\*/", "", s, flags=re.S)
     s = re.sub(r"--[^\n\r]*", "", s)
