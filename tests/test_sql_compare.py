@@ -1,5 +1,5 @@
 import unittest
-from sql_compare import canonicalize_joins, normalize_sql
+from sql_compare import canonicalize_joins, strip_sql_comments
 
 class TestCanonicalizeJoins(unittest.TestCase):
     def test_basic_inner_join_reorder(self):
@@ -119,6 +119,43 @@ class TestNormalizeSql(unittest.TestCase):
         """
         expected = "SELECT ID, NAME FROM USERS WHERE STATUS = 'active'"
         self.assertEqual(normalize_sql(sql), expected)
+class TestStripSqlComments(unittest.TestCase):
+    def test_single_line_comment(self):
+        """Should strip single line comment starting with --."""
+        sql = "-- this is a comment\nSELECT * FROM t1;"
+        expected = "\nSELECT * FROM t1;"
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_inline_comment(self):
+        """Should strip inline comment at the end of a line."""
+        sql = "SELECT * FROM t1; -- comment here"
+        expected = "SELECT * FROM t1; "
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_block_comment_single_line(self):
+        """Should strip block comment on a single line."""
+        sql = "SELECT /* comment */ * FROM t1;"
+        expected = "SELECT  * FROM t1;"
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_block_comment_multi_line(self):
+        """Should strip block comment spanning multiple lines."""
+        sql = "SELECT /* \n multi \n line \n comment \n */ * FROM t1;"
+        expected = "SELECT  * FROM t1;"
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_multiple_comments(self):
+        """Should strip multiple comments of different types."""
+        sql = "/* start */ SELECT * FROM t1; -- end comment"
+        expected = " SELECT * FROM t1; "
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_no_comments(self):
+        """Should return the same string if there are no comments."""
+        sql = "SELECT * FROM t1;"
+        expected = "SELECT * FROM t1;"
+        self.assertEqual(strip_sql_comments(sql), expected)
 
 if __name__ == '__main__':
+
     unittest.main()
