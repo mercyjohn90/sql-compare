@@ -23,6 +23,7 @@ CLI Examples:
 
 import argparse
 import difflib
+import itertools
 import os
 import re
 import sys
@@ -858,7 +859,18 @@ class SQLCompareGUI:
 
         pad = {"padx": 8, "pady": 6}
 
-        frm_top = ttk.Frame(root); frm_top.pack(fill="x", **pad)
+        self._setup_file_inputs(pad)
+        self._setup_mode_options(pad)
+        self._setup_join_flags(pad)
+        self._setup_buttons(pad)
+        self._setup_output_area(pad)
+
+        ttk.Label(root, text="Tip: CLI supports --strings/--stdin, --mode, --ignore-whitespace, --join-reorder/--no-join-reorder, --allow-full-outer-reorder, --allow-left-reorder, and --report.").pack(anchor="w", padx=8, pady=4)
+
+        self.last_result = None  # cache for report generation
+
+    def _setup_file_inputs(self, pad):
+        frm_top = ttk.Frame(self.root); frm_top.pack(fill="x", **pad)
         ttk.Label(frm_top, text="SQL File 1:").grid(row=0, column=0, sticky="w")
         e1 = ttk.Entry(frm_top, textvariable=self.sql1_path, width=90); e1.grid(row=0, column=1, sticky="we", padx=(8, 8))
         ttk.Button(frm_top, text="Browse...", command=self.browse1).grid(row=0, column=2)
@@ -867,13 +879,15 @@ class SQLCompareGUI:
         ttk.Button(frm_top, text="Browse...", command=self.browse2).grid(row=1, column=2)
         frm_top.columnconfigure(1, weight=1)
 
-        frm_mode = ttk.Frame(root); frm_mode.pack(fill="x", **pad)
+    def _setup_mode_options(self, pad):
+        frm_mode = ttk.Frame(self.root); frm_mode.pack(fill="x", **pad)
         ttk.Label(frm_mode, text="Mode:").pack(side="left")
         for text, val in [("Both", "both"), ("Exact", "exact"), ("Canonical", "canonical")]:
             ttk.Radiobutton(frm_mode, text=text, value=val, variable=self.mode).pack(side="left", padx=6)
         ttk.Checkbutton(frm_mode, text="Ignore whitespace differences", variable=self.ignore_ws).pack(side="left", padx=16)
 
-        frm_flags = ttk.Frame(root); frm_flags.pack(fill="x", **pad)
+    def _setup_join_flags(self, pad):
+        frm_flags = ttk.Frame(self.root); frm_flags.pack(fill="x", **pad)
         self.chk_enable_join = ttk.Checkbutton(frm_flags, text="Enable join reordering", variable=self.enable_join, command=self._toggle_join_options)
         self.chk_enable_join.pack(side="left", padx=6)
         self.chk_full = ttk.Checkbutton(frm_flags, text="Allow FULL OUTER JOIN reordering (heuristic)", variable=self.allow_full)
@@ -882,13 +896,15 @@ class SQLCompareGUI:
         self.chk_left.pack(side="left", padx=6)
         self._toggle_join_options()  # set initial state
 
-        frm_btns = ttk.Frame(root); frm_btns.pack(fill="x", **pad)
+    def _setup_buttons(self, pad):
+        frm_btns = ttk.Frame(self.root); frm_btns.pack(fill="x", **pad)
         ttk.Button(frm_btns, text="Compare", command=self.do_compare).pack(side="left")
         ttk.Button(frm_btns, text="Copy Output", command=self.copy_output).pack(side="left", padx=6)
         ttk.Button(frm_btns, text="Clear", command=self.clear_output).pack(side="left", padx=6)
         ttk.Button(frm_btns, text="Save Report…", command=self.save_report).pack(side="left", padx=6)
 
-        frm_out = ttk.Frame(root); frm_out.pack(fill="both", expand=True, **pad)
+    def _setup_output_area(self, pad):
+        frm_out = ttk.Frame(self.root); frm_out.pack(fill="both", expand=True, **pad)
         self.txt = tk.Text(frm_out, wrap="none", font=("Consolas", 10))
         xscroll = ttk.Scrollbar(frm_out, orient="horizontal", command=self.txt.xview)
         yscroll = ttk.Scrollbar(frm_out, orient="vertical", command=self.txt.yview)
@@ -897,10 +913,6 @@ class SQLCompareGUI:
         yscroll.grid(row=0, column=1, sticky="ns")
         xscroll.grid(row=1, column=0, sticky="ew")
         frm_out.rowconfigure(0, weight=1); frm_out.columnconfigure(0, weight=1)
-
-        ttk.Label(root, text="Tip: CLI supports --strings/--stdin, --mode, --ignore-whitespace, --join-reorder/--no-join-reorder, --allow-full-outer-reorder, --allow-left-reorder, and --report.").pack(anchor="w", padx=8, pady=4)
-
-        self.last_result = None  # cache for report generation
 
     def _toggle_join_options(self):
         # Enable/disable dependent flags based on global join toggle
