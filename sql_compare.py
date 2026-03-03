@@ -910,9 +910,18 @@ class SQLCompareGUI:
         frm_btns = ttk.Frame(self.root)
         frm_btns.pack(fill="x", **pad)
         ttk.Button(frm_btns, text="Compare", command=self.do_compare).pack(side="left")
-        ttk.Button(frm_btns, text="Copy Output", command=self.copy_output).pack(side="left", padx=6)
-        ttk.Button(frm_btns, text="Clear", command=self.clear_output).pack(side="left", padx=6)
-        ttk.Button(frm_btns, text="Save Report…", command=self.save_report).pack(side="left", padx=6)
+
+        self.btn_copy = ttk.Button(frm_btns, text="Copy Output", command=self.copy_output)
+        self.btn_copy.pack(side="left", padx=6)
+        self.btn_copy.state(['disabled'])
+
+        self.btn_clear = ttk.Button(frm_btns, text="Clear", command=self.clear_output)
+        self.btn_clear.pack(side="left", padx=6)
+        self.btn_clear.state(['disabled'])
+
+        self.btn_save = ttk.Button(frm_btns, text="Save Report…", command=self.save_report)
+        self.btn_save.pack(side="left", padx=6)
+        self.btn_save.state(['disabled'])
 
     def _create_output_frame(self, pad):
         frm_out = ttk.Frame(self.root)
@@ -925,6 +934,16 @@ class SQLCompareGUI:
         yscroll.grid(row=0, column=1, sticky="ns")
         xscroll.grid(row=1, column=0, sticky="ew")
         frm_out.rowconfigure(0, weight=1); frm_out.columnconfigure(0, weight=1)
+        self._insert_empty_state()
+
+    def _insert_empty_state(self):
+        empty_msg = (
+            "Select two SQL files and click 'Compare' to see results here.\n\n"
+            "Tip: You can change the comparison mode, ignore whitespace,\n"
+            "and toggle join reordering options using the controls above."
+        )
+        self.txt.insert("1.0", empty_msg)
+
     def _toggle_join_options(self):
         # Enable/disable dependent flags based on global join toggle
         if self.enable_join.get():
@@ -946,6 +965,11 @@ class SQLCompareGUI:
 
     def clear_output(self):
         self.txt.delete("1.0", "end")
+        self._insert_empty_state()
+        self.last_result = None
+        self.btn_copy.state(['disabled'])
+        self.btn_clear.state(['disabled'])
+        self.btn_save.state(['disabled'])
 
     def copy_output(self):
         try:
@@ -977,7 +1001,7 @@ class SQLCompareGUI:
             messagebox.showerror("Error", str(e))
 
     def render_result(self, result: dict, mode: str, ignore_ws: bool):
-        self.clear_output()
+        self.txt.delete("1.0", "end")
         lines = []
         lines.append("=== SQL Compare ===")
         lines.append(f"Whitespace-only equal: {'YES' if result['ws_equal'] else 'NO'}")
@@ -998,6 +1022,9 @@ class SQLCompareGUI:
             lines.append("---- Unified Diff (Canonicalized) ----")
             lines.append(result["diff_can"] if result["diff_can"] else "(no differences)"); lines.append("")
         self.txt.insert("1.0", "\n".join(lines))
+        self.btn_copy.state(['!disabled'])
+        self.btn_clear.state(['!disabled'])
+        self.btn_save.state(['!disabled'])
 
     def save_report(self):
         if not self.last_result:
