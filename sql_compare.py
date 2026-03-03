@@ -23,21 +23,15 @@ CLI Examples:
 
 import argparse
 import difflib
-import itertools
 import os
 import re
+import itertools
 import sys
 from pathlib import Path
 
 SQL_CLAUSE_TERMINATORS = ["WHERE", "GROUP BY", "HAVING", "ORDER BY", "LIMIT", "OFFSET", "QUALIFY", "WINDOW", "UNION", "INTERSECT", "EXCEPT"]
 from collections import Counter
 WHITESPACE_REGEX = re.compile(r'\s+')
-
-# Pre-compiled regexes for performance optimization in FROM clause parsing
-JOIN_REGEX = re.compile(r"\b((?:NATURAL\s+)?(?:LEFT|RIGHT|FULL|INNER|CROSS)?(?:\s+OUTER)?\s*JOIN)\b", flags=re.I)
-CONDKW_REGEX = re.compile(r"\b(ON|USING)\b", flags=re.I)
-
-
 
 
 
@@ -368,17 +362,17 @@ def _parse_from_clause_body(body: str):
             elif ch == ')':
                 level = max(0, level - 1)
             if level == 0:
-                m = JOIN_REGEX.match(body, i)
+                m = re.match(r"\b((?:NATURAL\s+)?(?:LEFT|RIGHT|FULL|INNER|CROSS)?(?:\s+OUTER)?\s*JOIN)\b", body[i:], flags=re.I)
                 if m:
                     flush_buf()
                     tokens.append(("JOINKW", collapse_whitespace(m.group(1)).upper()))
-                    i = m.end()
+                    i += m.end()
                     continue
-                m2 = CONDKW_REGEX.match(body, i)
+                m2 = re.match(r"\b(ON|USING)\b", body[i:], flags=re.I)
                 if m2:
                     flush_buf()
                     tokens.append(("CONDKW", m2.group(1).upper()))
-                    i = m2.end()
+                    i += m2.end()
                     continue
         else:
             if mode == 'single' and ch == "'":
