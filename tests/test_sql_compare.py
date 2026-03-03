@@ -1,5 +1,5 @@
 import unittest
-from sql_compare import canonicalize_joins, strip_sql_comments
+from sql_compare import canonicalize_joins, parse_args, strip_sql_comments
 
 class TestCanonicalizeJoins(unittest.TestCase):
     def test_basic_inner_join_reorder(self):
@@ -71,6 +71,30 @@ class TestCanonicalizeJoins(unittest.TestCase):
         self.assertEqual(canonicalize_joins(sql), expected)
 
 
+class TestParseArgs(unittest.TestCase):
+    def test_parse_args_no_arguments(self):
+        """parse_args with no arguments should return default values."""
+        args = parse_args([])
+        with self.subTest(param="files"):
+            self.assertEqual(args.files, [])
+        with self.subTest(param="strings"):
+            self.assertIsNone(args.strings)
+        with self.subTest(param="stdin"):
+            self.assertFalse(args.stdin)
+        with self.subTest(param="mode"):
+            self.assertEqual(args.mode, 'both')
+        with self.subTest(param="ignore_whitespace"):
+            self.assertFalse(args.ignore_whitespace)
+        with self.subTest(param="join_reorder"):
+            self.assertTrue(args.join_reorder)
+        with self.subTest(param="allow_full_outer_reorder"):
+            self.assertFalse(args.allow_full_outer_reorder)
+        with self.subTest(param="allow_left_reorder"):
+            self.assertFalse(args.allow_left_reorder)
+        with self.subTest(param="report"):
+            self.assertIsNone(args.report)
+        with self.subTest(param="report_format"):
+            self.assertEqual(args.report_format, 'html')
 
 class TestNormalizeSql(unittest.TestCase):
     def test_basic_normalization(self):

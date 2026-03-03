@@ -27,7 +27,6 @@ import itertools
 import os
 import re
 import sys
-import itertools
 from pathlib import Path
 
 SQL_CLAUSE_TERMINATORS = ["WHERE", "GROUP BY", "HAVING", "ORDER BY", "LIMIT", "OFFSET", "QUALIFY", "WINDOW", "UNION", "INTERSECT", "EXCEPT"]
