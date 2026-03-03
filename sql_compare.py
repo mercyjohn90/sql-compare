@@ -873,7 +873,8 @@ class SQLCompareGUI:
         ttk.Label(self.root, text="Tip: CLI supports --strings/--stdin, --mode, --ignore-whitespace, --join-reorder/--no-join-reorder, --allow-full-outer-reorder, --allow-left-reorder, and --report.").pack(anchor="w", padx=8, pady=4)
 
     def _create_top_frame(self, pad):
-        frm_top = ttk.Frame(self.root); frm_top.pack(fill="x", **pad)
+        frm_top = ttk.Frame(self.root)
+        frm_top.pack(fill="x", **pad)
         ttk.Label(frm_top, text="SQL File 1:").grid(row=0, column=0, sticky="w")
         e1 = ttk.Entry(frm_top, textvariable=self.sql1_path, width=90); e1.grid(row=0, column=1, sticky="we", padx=(8, 8))
         ttk.Button(frm_top, text="Browse...", command=self.browse1).grid(row=0, column=2)
