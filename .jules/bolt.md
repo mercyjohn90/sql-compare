@@ -1,0 +1,3 @@
+## 2024-05-18 - Optimized SQL parsing keyword matching
+**Learning:** `re.match(..., string[pos:])` creates O(N) string slices in Python, and the state-machine character-by-character scan is slow. Using pre-compiled regex `.finditer()` to jump directly to candidate keyword matches, and only advancing the state-machine up to that match to verify it's not inside quotes/parens, is over 100x faster for large SQL strings.
+**Action:** Use `re.finditer` to jump to candidate keywords and only advance state machines when a match is found, instead of advancing character by character across the entire string.
