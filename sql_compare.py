@@ -910,9 +910,16 @@ class SQLCompareGUI:
         frm_btns = ttk.Frame(self.root)
         frm_btns.pack(fill="x", **pad)
         ttk.Button(frm_btns, text="Compare", command=self.do_compare).pack(side="left")
-        ttk.Button(frm_btns, text="Copy Output", command=self.copy_output).pack(side="left", padx=6)
-        ttk.Button(frm_btns, text="Clear", command=self.clear_output).pack(side="left", padx=6)
-        ttk.Button(frm_btns, text="Save Report…", command=self.save_report).pack(side="left", padx=6)
+        self.btn_copy = ttk.Button(frm_btns, text="Copy Output", command=self.copy_output)
+        self.btn_copy.pack(side="left", padx=6)
+        self.btn_clear = ttk.Button(frm_btns, text="Clear", command=self.clear_output)
+        self.btn_clear.pack(side="left", padx=6)
+        self.btn_save = ttk.Button(frm_btns, text="Save Report…", command=self.save_report)
+        self.btn_save.pack(side="left", padx=6)
+
+        self.btn_copy.state(['disabled'])
+        self.btn_clear.state(['disabled'])
+        self.btn_save.state(['disabled'])
 
     def _create_output_frame(self, pad):
         frm_out = ttk.Frame(self.root)
@@ -922,6 +929,9 @@ class SQLCompareGUI:
         yscroll = ttk.Scrollbar(frm_out, orient="vertical", command=self.txt.yview)
         self.txt.configure(xscrollcommand=xscroll.set, yscrollcommand=yscroll.set)
         self.txt.grid(row=0, column=0, sticky="nsew")
+
+        self.txt.insert("1.0", "Select two SQL files and click 'Compare' to view the results here.")
+
         yscroll.grid(row=0, column=1, sticky="ns")
         xscroll.grid(row=1, column=0, sticky="ew")
         frm_out.rowconfigure(0, weight=1); frm_out.columnconfigure(0, weight=1)
@@ -946,6 +956,11 @@ class SQLCompareGUI:
 
     def clear_output(self):
         self.txt.delete("1.0", "end")
+        self.txt.insert("1.0", "Select two SQL files and click 'Compare' to view the results here.")
+        self.btn_copy.state(['disabled'])
+        self.btn_clear.state(['disabled'])
+        self.btn_save.state(['disabled'])
+        self.last_result = None
 
     def copy_output(self):
         try:
@@ -977,7 +992,10 @@ class SQLCompareGUI:
             messagebox.showerror("Error", str(e))
 
     def render_result(self, result: dict, mode: str, ignore_ws: bool):
-        self.clear_output()
+        self.txt.delete("1.0", "end")
+        self.btn_copy.state(['!disabled'])
+        self.btn_clear.state(['!disabled'])
+        self.btn_save.state(['!disabled'])
         lines = []
         lines.append("=== SQL Compare ===")
         lines.append(f"Whitespace-only equal: {'YES' if result['ws_equal'] else 'NO'}")
