@@ -1,0 +1,3 @@
+## 2024-05-24 - Fast regex lookahead in token-tracking state machines
+**Learning:** In state-machine parsing loops that track quoting and nesting to find keywords (like `top_level_find_kw`), iterating character-by-character and executing `re.match(pattern, sql[i:])` creates a severe O(N^2) bottleneck due to string slicing and uncompiled regex evaluations at every index.
+**Action:** Instead of linear character-by-character scanning with slow `re.match`, use a compiled `pattern.finditer(sql)` to jump instantly to candidate matches. Then, advance the state-machine explicitly only up to that `candidate_idx` to verify the state (e.g. `level == 0 and mode is None`). This optimizes execution to O(N).
