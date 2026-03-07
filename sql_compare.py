@@ -237,32 +237,41 @@ def split_top_level(s: str, sep: str) -> list:
 
 def top_level_find_kw(sql: str, kw: str, start: int = 0):
     """Find top-level occurrence of keyword kw (word boundary) starting at start."""
+    # Optimization: Use pre-compiled regex with re.finditer to efficiently jump
+    # to candidate keywords in O(N) time, avoiding expensive character-by-character
+    # linear scanning and O(N^2) string slicing.
     kw = kw.upper()
+    pattern = re.compile(rf"\b{re.escape(kw)}\b")
     i = start; mode = None; level = 0
-    while i < len(sql):
-        ch = sql[i]
-        if mode is None:
-            if ch == "'": mode = 'single'
-            elif ch == '"': mode = 'double'
-            elif ch == '[': mode = 'bracket'
-            elif ch == '`': mode = 'backtick'
-            elif ch == '(':
-                level += 1
-            elif ch == ')':
-                level = max(0, level - 1)
-            if level == 0:
-                m = re.match(rf"\b{re.escape(kw)}\b", sql[i:])
-                if m: return i
-        else:
-            if mode == 'single' and ch == "'":
-                if i + 1 < len(sql) and sql[i + 1] == "'": i += 1
-                else: mode = None
-            elif mode == 'double' and ch == '"':
-                if i + 1 < len(sql) and sql[i + 1] == '"': i += 1
-                else: mode = None
-            elif mode == 'bracket' and ch == ']': mode = None
-            elif mode == 'backtick' and ch == '`': mode = None
-        i += 1
+
+    for match in pattern.finditer(sql, start):
+        candidate_idx = match.start()
+
+        # Fast-forward the state machine to the candidate match
+        while i < candidate_idx:
+            ch = sql[i]
+            if mode is None:
+                if ch == "'": mode = 'single'
+                elif ch == '"': mode = 'double'
+                elif ch == '[': mode = 'bracket'
+                elif ch == '`': mode = 'backtick'
+                elif ch == '(': level += 1
+                elif ch == ')': level = max(0, level - 1)
+            else:
+                if mode == 'single' and ch == "'":
+                    if i + 1 < len(sql) and sql[i + 1] == "'": i += 1
+                    else: mode = None
+                elif mode == 'double' and ch == '"':
+                    if i + 1 < len(sql) and sql[i + 1] == '"': i += 1
+                    else: mode = None
+                elif mode == 'bracket' and ch == ']': mode = None
+                elif mode == 'backtick' and ch == '`': mode = None
+            i += 1
+
+        # If the candidate match is at the top-level (not in quotes or parens), return it
+        if mode is None and level == 0:
+            return candidate_idx
+
     return -1
 
 
