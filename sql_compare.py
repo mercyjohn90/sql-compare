@@ -23,6 +23,7 @@ CLI Examples:
 
 import argparse
 import difflib
+import html
 import os
 import re
 import itertools
@@ -788,7 +789,10 @@ def generate_report(result: dict, mode: str, fmt: str, out_path: str, ignore_ws:
     # HTML (color-coded)
     hd = difflib.HtmlDiff(wrapcolumn=120)
     def mk(title, a, b, fromname, toname):
-        table = hd.make_table(a.splitlines(), b.splitlines(), fromdesc=fromname, todesc=toname, context=True, numlines=3)
+        # difflib.HtmlDiff does not escape fromdesc and todesc
+        escaped_from = html.escape(fromname)
+        escaped_to = html.escape(toname)
+        table = hd.make_table(a.splitlines(), b.splitlines(), fromdesc=escaped_from, todesc=escaped_to, context=True, numlines=3)
         return f"<h2>{title}</h2>\n{table}"
 
     sections = []
@@ -803,7 +807,7 @@ def generate_report(result: dict, mode: str, fmt: str, out_path: str, ignore_ws:
     sections.append("""
     <h2>Summary of differences</h2>
     <ul>
-    """ + "\n".join(f"<li>{line}</li>" for line in result["summary"]) + "</ul>")
+    """ + "\n".join(f"<li>{html.escape(line)}</li>" for line in result["summary"]) + "</ul>")
 
     sections.append("""
     <div style="margin:8px 0;">
@@ -821,7 +825,7 @@ def generate_report(result: dict, mode: str, fmt: str, out_path: str, ignore_ws:
     if mode in ("both", "canonical"):
         sections.append(mk("Canonicalized Diff", result["can_a"], result["can_b"], "sql1(canon)", "sql2(canon)"))
 
-    html = f"""<!DOCTYPE html>
+    html_content = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>SQL Compare Report</title>
 <style>
 body {{ font-family: Segoe UI, Tahoma, Arial, sans-serif; margin: 16px; color: #111; }}
@@ -839,7 +843,7 @@ table.diff thead th {{ background: #f6f8fa; }}
 </head><body>
 {''.join(sections)}
 </body></html>"""
-    Path(out_path).write_text(html, encoding="utf-8")
+    Path(out_path).write_text(html_content, encoding="utf-8")
 
 
 # =============================
