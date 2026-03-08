@@ -1,0 +1,4 @@
+## 2024-03-08 - XSS in HTML report generation
+**Vulnerability:** XSS vulnerability where user input provided to `fromname`, `toname`, `title` arguments and the lines in the summary list were not escaped and instead directly concatenated into the HTML output in `generate_report`.
+**Learning:** `difflib.HtmlDiff` handles escaping for the diff code itself but does not escape metadata parameters passed to `make_table`. Furthermore, when concatenating strings like f-strings into an HTML content structure manually, the values injected must be explicitly escaped with `html.escape()`.
+**Prevention:** Always escape user-provided strings when using `make_table` args and f-strings that generate HTML elements. Also make sure to not name variables `html` so it does not shadow the `html` standard library module.
