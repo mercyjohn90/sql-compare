@@ -1,5 +1,5 @@
 import unittest
-from sql_compare import canonicalize_joins, tokenize
+from sql_compare import canonicalize_joins, clause_end_index, tokenize
 
 class TestCanonicalizeJoins(unittest.TestCase):
     def test_basic_inner_join_reorder(self):
@@ -117,6 +117,51 @@ class TestTokenize(unittest.TestCase):
         for description, sql, expected in test_cases:
             with self.subTest(description=description):
                 self.assertEqual(tokenize(sql), expected)
+
+
+class TestClauseEndIndex(unittest.TestCase):
+    def test_no_terminators(self):
+        """Should return length of string if no terminators found."""
+        sql = "SELECT * FROM my_table JOIN other_table ON a = b"
+        self.assertEqual(clause_end_index(sql, 0), len(sql))
+
+    def test_single_terminator(self):
+        """Should return index of the first terminator."""
+        sql = "SELECT * FROM my_table WHERE a = 1"
+        self.assertEqual(clause_end_index(sql, 0), sql.index("WHERE"))
+
+        sql = "SELECT * FROM my_table GROUP BY a"
+        self.assertEqual(clause_end_index(sql, 0), sql.index("GROUP BY"))
+
+    def test_multiple_terminators(self):
+        """Should return index of the first terminator from start."""
+        sql = "SELECT * FROM my_table WHERE a = 1 GROUP BY a ORDER BY a"
+        self.assertEqual(clause_end_index(sql, 0), sql.index("WHERE"))
+
+        start_after_where = sql.index("WHERE") + len("WHERE")
+        self.assertEqual(clause_end_index(sql, start_after_where), sql.index("GROUP BY"))
+
+    def test_terminator_inside_subquery(self):
+        """Should ignore terminators inside nested parentheses."""
+        sql = "SELECT * FROM t1 JOIN (SELECT * FROM t2 WHERE b = 1) ON a = b WHERE a = 1"
+        self.assertEqual(clause_end_index(sql, 0), sql.rindex("WHERE"))
+
+    def test_terminator_inside_quotes(self):
+        """Should ignore terminators that appear inside quoted strings."""
+        sql = "SELECT * FROM t1 WHERE a = 'WHERE' GROUP BY b"
+        self.assertEqual(clause_end_index(sql, 0), sql.index("WHERE"))
+
+        sql2 = "SELECT * FROM t1 JOIN u ON a = '[WHERE]' GROUP BY b"
+        self.assertEqual(clause_end_index(sql2, 0), sql2.index("GROUP BY"))
+
+        sql3 = "SELECT * FROM t1 JOIN u ON a = `WHERE` GROUP BY b"
+        self.assertEqual(clause_end_index(sql3, 0), sql3.index("GROUP BY"))
+
+    def test_different_start_indices(self):
+        """Should honor starting position when searching for terminators."""
+        sql = "SELECT * FROM my_table WHERE a = 1"
+        self.assertEqual(clause_end_index(sql, 0), sql.index("WHERE"))
+        self.assertEqual(clause_end_index(sql, sql.index("WHERE") + 1), len(sql))
 
 if __name__ == '__main__':
     unittest.main()
