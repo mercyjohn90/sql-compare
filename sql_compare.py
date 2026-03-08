@@ -266,16 +266,36 @@ def top_level_find_kw(sql: str, kw: str, start: int = 0):
     return -1
 
 
+CLAUSE_SCANNER_RE = re.compile(
+    r"""
+    (
+        '(?:''|[^'])*'            # Single quote (group 1)
+      | "(?:""|[^"])*"            # Double quote (group 1)
+      | \[(?:[^\]]*)\]            # Bracket (group 1)
+      | `(?:[^`]*)`               # Backtick (group 1)
+    )
+    | (\()                        # Open paren (group 2)
+    | (\))                        # Close paren (group 3)
+    | \b(WHERE|GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT|OFFSET|QUALIFY|WINDOW|UNION|INTERSECT|EXCEPT)\b # Keywords (group 4)
+    """,
+    re.VERBOSE | re.IGNORECASE
+)
+
 def clause_end_index(sql: str, start: int) -> int:
     """
     Find end index for a clause (FROM or WHERE) to the next top-level major keyword.
+    Uses regex scanning for performance instead of multiple linear searches.
     """
-    terms = CLAUSE_TERMINATORS
-    ends = []
-    for term in SQL_CLAUSE_TERMINATORS:
-        idx = top_level_find_kw(sql, term, start)
-        if idx != -1: ends.append(idx)
-    return min(ends) if ends else len(sql)
+    level = 0
+    for match in CLAUSE_SCANNER_RE.finditer(sql, pos=start):
+        if match.group(2): # (
+            level += 1
+        elif match.group(3): # )
+            level = max(0, level - 1)
+        elif match.group(4): # Keyword
+            if level == 0:
+                return match.start()
+    return len(sql)
 
 
 # =============================
