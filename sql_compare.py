@@ -909,7 +909,19 @@ frm_btns.pack(fill="x", **pad)
         ttk.Button(frm_btns, text="Save Report…", command=self.save_report).pack(side="left", padx=6)
 
     def _setup_output_area(self, pad):
-        frm_out = ttk.Frame(self.root); frm_out.pack(fill="both", expand=True, **pad)
+        self.chk_left.pack(side="left", padx=6)
+        self._toggle_join_options()  # set initial state
+
+    def _setup_buttons(self, pad):
+        frm_btns = ttk.Frame(self.root); frm_btns.pack(fill="x", **pad)
+        ttk.Button(frm_btns, text="Compare", command=self.do_compare).pack(side="left")
+        ttk.Button(frm_btns, text="Copy Output", command=self.copy_output).pack(side="left", padx=6)
+        ttk.Button(frm_btns, text="Clear", command=self.clear_output).pack(side="left", padx=6)
+        ttk.Button(frm_btns, text="Save Report…", command=self.save_report).pack(side="left", padx=6)
+
+    def _setup_output_area(self, pad):
+        frm_out = ttk.Frame(self.root)
+        frm_out.pack(fill="both", expand=True, **pad)
         self.txt = tk.Text(frm_out, wrap="none", font=("Consolas", 10))
         xscroll = ttk.Scrollbar(frm_out, orient="horizontal", command=self.txt.xview)
         yscroll = ttk.Scrollbar(frm_out, orient="vertical", command=self.txt.yview)
