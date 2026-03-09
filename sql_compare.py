@@ -870,7 +870,8 @@ class SQLCompareGUI:
         self.last_result = None  # cache for report generation
 
     def _setup_file_inputs(self, pad):
-        frm_top = ttk.Frame(self.root); frm_top.pack(fill="x", **pad)
+frm_top = ttk.Frame(self.root)
+frm_top.pack(fill="x", **pad)
         ttk.Label(frm_top, text="SQL File 1:").grid(row=0, column=0, sticky="w")
         e1 = ttk.Entry(frm_top, textvariable=self.sql1_path, width=90); e1.grid(row=0, column=1, sticky="we", padx=(8, 8))
         ttk.Button(frm_top, text="Browse...", command=self.browse1).grid(row=0, column=2)
