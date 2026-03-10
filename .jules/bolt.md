@@ -1,0 +1,3 @@
+## 2024-03-10 - O(N^2) Performance Bottleneck in State-Tracking Parsers
+**Learning:** In text parsing loops that require state tracking (like `top_level_find_kw` tracking quotes and parenthesis nesting levels), combining a character-by-character linear scan with `re.match(pattern, sql[i:])` causes an O(N^2) time complexity explosion due to continuous string slicing at every character.
+**Action:** Use `re.finditer` to efficiently jump to candidate match indices using fast regex lookahead in O(N) time, then advance the state-machine pointer up to that exact candidate index to validate the state (e.g. checking nesting `level == 0`), bypassing the expensive linear search and slicing.
