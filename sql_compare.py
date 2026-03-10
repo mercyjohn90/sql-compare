@@ -445,7 +445,7 @@ def _extract_join_segments(tokens: list, start_idx: int) -> list:
     return segments
 
 
-def _parse_from_clause_body(body: str):
+def _parse_from_clause_body(body: str) -> tuple:
     """
     Parse FROM body into base and join segments.
     Returns: (base_text, segments)
