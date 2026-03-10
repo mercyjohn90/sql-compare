@@ -93,8 +93,8 @@ When reviewing pull requests, pay attention to:
    against an allowlist or quoted-identifier API before interpolating into DDL.
 10. **Secrets** — connection passwords and DSNs must come from environment
     variables or a vault-backed config; never hardcoded or logged.
-11. **CI compatibility** — CI runs on `windows-latest`  [TODO: confirm OS];
-    avoid Unix-only assumptions (shebangs, forward-slash-only paths,
-    Unix signals).
+11. **CI compatibility** — CI currently runs on `ubuntu-latest`; avoid
+    OS-specific assumptions (e.g., Unix-only signals, shebangs, or
+    Windows-only path handling).
 12. **License** — project is MIT  [TODO: confirm]; do not introduce code
     with incompatible licenses.
