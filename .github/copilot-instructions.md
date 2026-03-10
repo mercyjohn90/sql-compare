@@ -28,21 +28,21 @@ handling or add dialect-specific logic outside the appropriate driver module.
   concatenation with user input — always use parameterized driver APIs.
 
 ## Dependencies
-Runtime dependencies are declared in `pyproject.toml`; avoid adding new
-runtime dependencies without discussion. The expected set is:
+This project is currently implemented as a single-file Python script using
+only the standard library at runtime.
 
-* `sqlalchemy` — unified DB connectivity layer across all dialects
-* `cx_Oracle` or `oracledb` — Oracle driver  [TODO: confirm which]
-* `psycopg2` or `psycopg` — PostgreSQL driver  [TODO: confirm which]
-* `pymysql` or `mysql-connector-python` — MySQL/MariaDB driver  [TODO: confirm]
-* `pyodbc` — SQL Server driver
-* `tabulate` or similar — diff output formatting  [TODO: confirm or remove]
-* `pyyaml` — connection profile / config file support  [TODO: confirm]
-
-Build-system requirements are defined in `pyproject.toml`. Common local dev
-tools (not all declared in `pyproject.toml` or installed in CI) include
-`pytest` and `build`.
-
+* Do **not** add third-party runtime dependencies (e.g., SQLAlchemy, database
+  drivers, `tabulate`, `pyyaml`, etc.) unless the project is explicitly
+  restructured and the maintainers agree to introduce them.
+* There is no `pyproject.toml`, `setup.py`, or `setup.cfg` in use for
+  packaging or dependency management; do not introduce these files unless
+  the project is intentionally migrated to a packaged layout.
+* When you need functionality, prefer existing standard library modules
+  (`argparse`, `pathlib`, `subprocess`, `difflib`, etc.) before considering
+  any external library.
+* Test or development tools (if used) should be treated as optional and
+  should not be assumed to be available unless they are clearly present in
+  the repository configuration.
 ## Project Layout
 * Source lives under `src/sql_compare/` (following the `src` layout convention).
   [TODO: confirm actual package name — `sql_compare` vs `sqlcompare`]
