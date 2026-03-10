@@ -96,5 +96,5 @@ When reviewing pull requests, pay attention to:
 11. **CI compatibility** — CI currently runs on `ubuntu-latest`; avoid
     OS-specific assumptions (e.g., Unix-only signals, shebangs, or
     Windows-only path handling).
-12. **License** — project is MIT  [TODO: confirm]; do not introduce code
+12. **License** — project is MIT; do not introduce code
     with incompatible licenses.
