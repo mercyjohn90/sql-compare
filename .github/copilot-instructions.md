@@ -18,7 +18,7 @@ handling or add dialect-specific logic outside the appropriate driver module.
   work both as CLI commands and in tests.
 * Use `argparse.ArgumentParser` for CLI argument parsing — no click, typer,
   or other frameworks.
-* Use `pathlib.Path` for all filesystem operations — never raw `os.path` calls.
+* Prefer `pathlib.Path` for filesystem operations in new or modified code; avoid adding new `os.path` calls.
 * Use `encoding='utf-8'` explicitly on all `open()` / `Path.open()` calls.
 * Prefer grouped imports (stdlib, third-party, local) with one blank line
   between groups in new or modified modules.
