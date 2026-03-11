@@ -1,0 +1,13 @@
+addReviewers: true
+addAssignees: author
+numberOfReviewers: 2
+reviewers:
+  - copilot
+  - claude
+  - codex
+  - jules
+  - gemini-code-assist
+skipKeywords:
+  - wip
+  - draft
+  - '[no-review]'

@@ -1,0 +1,17 @@
+name: Auto Assign
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  add-reviews:
+    if: ${{ !contains(github.event.pull_request.title, '[no-review]') && !contains(github.event.pull_request.body, '[no-review]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: kentaro-m/auto-assign-action@v2.0.1
+        with:
+          configuration-path: '.github/auto_assign.yml'
