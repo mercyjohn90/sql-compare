@@ -1,5 +1,9 @@
 import unittest
-from sql_compare import canonicalize_joins, clause_end_index, tokenize
+from sql_compare import (
+    canonicalize_joins, clause_end_index, tokenize,
+    strip_sql_comments, uppercase_outside_quotes,
+    top_level_find_kw,
+)
 
 class TestCanonicalizeJoins(unittest.TestCase):
     def test_basic_inner_join_reorder(self):
@@ -217,6 +221,192 @@ class TestClauseEndIndex(unittest.TestCase):
         self.assertEqual(clause_end_index(sql, 0), sql.index("WHERE"))
         self.assertEqual(clause_end_index(sql, sql.index("WHERE") + 1), len(sql))
 
-if __name__ == '__main__':
+class TestStripSqlComments(unittest.TestCase):
+    def test_no_comments(self):
+        sql = "SELECT * FROM my_table;"
+        self.assertEqual(strip_sql_comments(sql), sql)
 
+    def test_single_line_comment(self):
+        sql = "SELECT * FROM my_table; -- this is a comment"
+        expected = "SELECT * FROM my_table; "
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_single_line_comment_own_line(self):
+        sql = "-- this is a comment\nSELECT * FROM my_table;"
+        expected = "\nSELECT * FROM my_table;"
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_block_comment_single_line(self):
+        sql = "SELECT /* comment */ * FROM my_table;"
+        expected = "SELECT  * FROM my_table;"
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_block_comment_multi_line(self):
+        sql = "SELECT /* multi\nline\ncomment */ * FROM my_table;"
+        expected = "SELECT  * FROM my_table;"
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_multiple_comments(self):
+        sql = "SELECT /* comment 1 */ * FROM my_table; -- comment 2"
+        expected = "SELECT  * FROM my_table; "
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_empty_string(self):
+        self.assertEqual(strip_sql_comments(""), "")
+
+    def test_only_comment(self):
+        self.assertEqual(strip_sql_comments("-- comment"), "")
+        self.assertEqual(strip_sql_comments("/* comment */"), "")
+
+    def test_no_newline_after_single_line_comment(self):
+        sql = "SELECT * FROM my_table; -- comment without newline"
+        expected = "SELECT * FROM my_table; "
+        self.assertEqual(strip_sql_comments(sql), expected)
+
+    def test_empty_block_comment(self):
+        sql = "SELECT /**/ * FROM my_table;"
+        expected = "SELECT  * FROM my_table;"
+        self.assertEqual(strip_sql_comments(sql), expected)
+    def test_comment_like_sequences_in_strings(self):
+        """Ensures comment-like sequences in string literals are not stripped."""
+        with self.subTest("Line comment in string"):
+            sql = "SELECT 'This is -- not a comment' FROM my_table;"
+            self.assertEqual(strip_sql_comments(sql), sql)
+
+        with self.subTest("Block comment in string"):
+            sql = "SELECT 'This is /* not a comment */' FROM my_table;"
+            self.assertEqual(strip_sql_comments(sql), sql)
+
+
+class TestUppercaseOutsideQuotes(unittest.TestCase):
+    def test_unquoted_text(self):
+        self.assertEqual(uppercase_outside_quotes("select a from t"), "SELECT A FROM T")
+
+    def test_single_quotes(self):
+        self.assertEqual(uppercase_outside_quotes("select 'hello'"), "SELECT 'hello'")
+
+    def test_double_quotes(self):
+        self.assertEqual(uppercase_outside_quotes('select "myCol"'), 'SELECT "myCol"')
+
+    def test_brackets(self):
+        self.assertEqual(uppercase_outside_quotes("select [my Col]"), "SELECT [my Col]")
+
+    def test_backticks(self):
+        self.assertEqual(uppercase_outside_quotes("select `myCol`"), "SELECT `myCol`")
+
+    def test_mixed_quotes(self):
+        result = uppercase_outside_quotes("select 'a', \"b\", [c], `d` from t")
+        self.assertEqual(result, "SELECT 'a', \"b\", [c], `d` FROM T")
+
+    def test_escaped_single_quotes(self):
+        result = uppercase_outside_quotes("select 'it''s'")
+        self.assertEqual(result, "SELECT 'it''s'")
+
+    def test_escaped_double_quotes(self):
+        result = uppercase_outside_quotes('select "a""b"')
+        self.assertEqual(result, 'SELECT "a""b"')
+
+    def test_consecutive_quotes(self):
+        result = uppercase_outside_quotes("select ''")
+        self.assertEqual(result, "SELECT ''")
+
+    def test_unclosed_quotes(self):
+        # Should not crash on unclosed quotes
+        result = uppercase_outside_quotes("select 'unclosed")
+        self.assertIsInstance(result, str)
+
+    def test_quotes_inside_quotes(self):
+        result = uppercase_outside_quotes("""select 'he said "hi"' from t""")
+        self.assertEqual(result, """SELECT 'he said "hi"' FROM T""")
+
+
+class TestTopLevelFindKw(unittest.TestCase):
+    def test_finds_top_level_keyword(self):
+        """Should find a keyword at the top level."""
+        sql = "SELECT a FROM t WHERE a = 1"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), sql.index("WHERE"))
+
+    def test_keyword_inside_single_quotes_ignored(self):
+        """Keyword inside single-quoted string should not match."""
+        sql = "SELECT 'WHERE' FROM t"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_inside_double_quotes_ignored(self):
+        """Keyword inside double-quoted identifier should not match."""
+        sql = 'SELECT "WHERE" FROM t'
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_inside_brackets_ignored(self):
+        """Keyword inside bracket-quoted identifier should not match."""
+        sql = "SELECT [WHERE] FROM t"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_inside_backticks_ignored(self):
+        """Keyword inside backtick-quoted identifier should not match."""
+        sql = "SELECT `WHERE` FROM t"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_inside_subquery_ignored(self):
+        """Keyword inside parenthesized subquery should not be treated as top-level."""
+        sql = "SELECT * FROM (SELECT * FROM t WHERE id = 1) sub"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_after_subquery_found(self):
+        """Keyword after a subquery (at top level) should still be found."""
+        sql = "SELECT * FROM (SELECT * FROM t WHERE id = 1) sub WHERE sub.x = 2"
+        expected = sql.rindex("WHERE")
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), expected)
+
+    def test_start_offset_skips_earlier_occurrence(self):
+        """Using start offset should skip keyword occurrences before start."""
+        sql = "SELECT a FROM t WHERE a = 1 ORDER BY a"
+        where_idx = sql.index("WHERE")
+        order_idx = sql.index("ORDER")
+        # Starting after WHERE should not find WHERE again
+        self.assertEqual(top_level_find_kw(sql, "WHERE", start=where_idx + 1), -1)
+        # Should find ORDER BY from the beginning
+        self.assertEqual(top_level_find_kw(sql, "ORDER", start=0), order_idx)
+
+    def test_not_found_returns_minus_one(self):
+        """Should return -1 when keyword is not present."""
+        sql = "SELECT a FROM t"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_case_insensitive(self):
+        """Should match keyword regardless of case in SQL."""
+        sql = "select a from t where a = 1"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), sql.index("where"))
+
+    def test_quoted_string_with_escaped_quote_then_keyword(self):
+        """Escaped quotes inside string should not break parsing; keyword after string is found."""
+        sql = "SELECT 'it''s fine' WHERE x = 1"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), sql.index("WHERE"))
+
+
+class TestSecurity(unittest.TestCase):
+    def test_xss_in_html_report_summary(self):
+        """Verify that XSS payloads in summary lines are escaped in HTML output."""
+        import tempfile, os
+        from sql_compare import generate_report
+        xss_payload = '<script>alert("xss")</script>'
+        result = {
+            'ws_equal': True, 'exact_equal': False, 'canonical_equal': False,
+            'summary': [xss_payload],
+            'diff_ws': '', 'diff_norm': '', 'diff_can': '',
+            'ws_a': '', 'ws_b': '', 'norm_a': 'SELECT 1', 'norm_b': 'SELECT 2',
+            'can_a': 'SELECT 1', 'can_b': 'SELECT 2',
+        }
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w', encoding='utf-8') as f:
+            tmp_path = f.name
+        try:
+            generate_report(result, 'both', 'html', tmp_path, False)
+            with open(tmp_path, encoding='utf-8') as f:
+                html_content = f.read()
+            self.assertNotIn('<script>', html_content)
+            self.assertIn('&lt;script&gt;', html_content)
+        finally:
+            os.unlink(tmp_path)
+
+
+if __name__ == '__main__':
     unittest.main()
