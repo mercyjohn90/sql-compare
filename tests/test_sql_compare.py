@@ -1,5 +1,5 @@
 import unittest
-from sql_compare import canonicalize_joins, parse_args, strip_sql_comments
+from sql_compare import canonicalize_joins, parse_args, strip_sql_comments, normalize_sql
 
 class TestCanonicalizeJoins(unittest.TestCase):
     def test_basic_inner_join_reorder(self):
