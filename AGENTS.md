@@ -1,3 +1,9 @@
+<!--
+NOTE: This file contains duplicated project context. When making changes here,
+please ensure they are propagated to the following files:
+- CLAUDE.md
+- LLM-INSTRUCTIONS.md
+-->
 # AGENTS.md — Project Guide for OpenAI Codex
 
 ## Project Overview
