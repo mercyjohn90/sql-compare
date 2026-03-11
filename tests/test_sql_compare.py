@@ -1,5 +1,5 @@
 import unittest
-from sql_compare import canonicalize_joins, clause_end_index, tokenize
+from sql_compare import canonicalize_joins, clause_end_index, tokenize, top_level_find_kw
 
 class TestCanonicalizeJoins(unittest.TestCase):
     def test_basic_inner_join_reorder(self):
@@ -69,6 +69,101 @@ class TestCanonicalizeJoins(unittest.TestCase):
         sql = "SELECT * FROM t1 NATURAL JOIN t3 NATURAL JOIN t2"
         expected = "SELECT * FROM t1 NATURAL JOIN t2 NATURAL JOIN t3"
         self.assertEqual(canonicalize_joins(sql), expected)
+
+
+class TestTopLevelFindKw(unittest.TestCase):
+    def test_keyword_inside_single_quotes(self):
+        """Keywords inside single quotes should be ignored."""
+        sql = "SELECT a FROM t WHERE b = 'WHERE' AND c = 1"
+        # The WHERE inside quotes should be ignored, should find the real WHERE
+        result = top_level_find_kw(sql, "WHERE")
+        self.assertEqual(result, sql.index("WHERE"))
+        # If we search for AND starting after WHERE, should find AND after the quoted text
+        and_pos = top_level_find_kw(sql, "AND", result + 1)
+        self.assertEqual(and_pos, sql.index("AND"))
+
+    def test_keyword_inside_double_quotes(self):
+        """Keywords inside double quotes should be ignored."""
+        sql = 'SELECT a FROM t WHERE b = "WHERE" AND c = 1'
+        result = top_level_find_kw(sql, "WHERE")
+        self.assertEqual(result, sql.index("WHERE"))
+
+    def test_keyword_inside_brackets(self):
+        """Keywords inside bracket identifiers should be ignored."""
+        sql = "SELECT a FROM [WHERE] WHERE b = 1"
+        # [WHERE] is a bracketed identifier, should find the real WHERE after it
+        result = top_level_find_kw(sql, "WHERE")
+        self.assertEqual(result, sql.rindex("WHERE"))
+
+    def test_keyword_inside_backticks(self):
+        """Keywords inside backtick identifiers should be ignored."""
+        sql = "SELECT a FROM `WHERE` WHERE b = 1"
+        # `WHERE` is a backticked identifier, should find the real WHERE after it
+        result = top_level_find_kw(sql, "WHERE")
+        self.assertEqual(result, sql.rindex("WHERE"))
+
+    def test_keyword_inside_parentheses(self):
+        """Keywords inside parenthesized subqueries should be ignored."""
+        sql = "SELECT * FROM t1 JOIN (SELECT * FROM t2 WHERE b = 1) ON a = b WHERE a = 1"
+        # The WHERE inside the subquery should be ignored, should find the last WHERE
+        result = top_level_find_kw(sql, "WHERE")
+        self.assertEqual(result, sql.rindex("WHERE"))
+
+    def test_start_offset(self):
+        """Should respect start parameter for subsequent lookups."""
+        sql = "SELECT a FROM t WHERE b = 1 AND c = 2 AND d = 3"
+        # Find first AND
+        first_and = top_level_find_kw(sql, "AND")
+        self.assertEqual(first_and, sql.index("AND"))
+        # Find second AND starting after first
+        second_and = top_level_find_kw(sql, "AND", first_and + 1)
+        self.assertGreater(second_and, first_and)
+        self.assertEqual(second_and, sql.index("AND", first_and + 1))
+
+    def test_word_boundary(self):
+        """Should match only whole words, not substrings."""
+        sql = "SELECT a FROM whereabouts WHERE b = 1"
+        # Should not match 'WHERE' inside 'whereabouts', should find actual WHERE
+        result = top_level_find_kw(sql, "WHERE")
+        self.assertEqual(result, sql.index("WHERE"))
+        # Should return -1 if keyword not found
+        result = top_level_find_kw(sql, "LIMIT")
+        self.assertEqual(result, -1)
+
+    def test_escaped_single_quotes(self):
+        """Should handle escaped single quotes correctly."""
+        sql = "SELECT * FROM t WHERE a = 'it''s' AND b = 1"
+        # The doubled single quote is an escape sequence, should stay inside the string
+        result = top_level_find_kw(sql, "AND")
+        self.assertEqual(result, sql.index("AND"))
+
+    def test_escaped_double_quotes(self):
+        """Should handle escaped double quotes correctly."""
+        sql = 'SELECT * FROM t WHERE a = "say ""hello""" AND b = 1'
+        # The doubled double quote is an escape sequence, should stay inside the string
+        result = top_level_find_kw(sql, "AND")
+        self.assertEqual(result, sql.index("AND"))
+
+    def test_case_insensitivity(self):
+        """Keyword search parameter is uppercased, but SQL matching is case-sensitive."""
+        sql = "SELECT a FROM t WHERE b = 1"
+        # Search with lowercase parameter should find uppercase WHERE in SQL
+        result = top_level_find_kw(sql, "where")
+        self.assertEqual(result, sql.index("WHERE"))
+        # But lowercase WHERE in SQL won't be found
+        sql_lower = "SELECT a FROM t where b = 1"
+        result = top_level_find_kw(sql_lower, "WHERE")
+        self.assertEqual(result, -1)
+
+    def test_nested_parentheses(self):
+        """Should handle multiple levels of nested parentheses."""
+        sql = "SELECT * FROM t1 WHERE a IN (SELECT x FROM (SELECT y FROM t2 WHERE z = 1)) AND b = 2"
+        # Should find the first top-level WHERE, ignoring the one inside nested subquery
+        result = top_level_find_kw(sql, "WHERE")
+        self.assertEqual(result, sql.index("WHERE"))
+        # Should find the top-level AND
+        result = top_level_find_kw(sql, "AND")
+        self.assertEqual(result, sql.index("AND"))
 
 
 class TestClauseEndIndex(unittest.TestCase):
