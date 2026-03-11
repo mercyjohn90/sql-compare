@@ -55,11 +55,11 @@ python sql_compare.py --strings "SELECT 1" "SELECT 1" --mode exact
 - Single-file architecture — all code lives in `sql_compare.py`.
 - Use standard library only — do not add third-party dependencies.
 
-## 3.1)  Code Commandment: TDD-First
+## Code Commandment: TDD-First
 
 1. Derive test from expected outputs/behavior — not from implementation.
 2. Write test only. STOP.
 3. Present test. Await explicit approval.
 4. Only then write the implementation.
 
-TDD mode: show test first, wait for approval, then implement.
+> **TDD mode:** show test first, wait for approval, then implement.
