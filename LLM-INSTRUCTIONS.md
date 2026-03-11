@@ -33,7 +33,7 @@ python sql_compare.py
 
 ## How to Verify Changes
 
-There is no formal test suite. Verify changes by running:
+There is a small unit test suite under `tests/` (for example, `tests/test_sql_compare.py`). Verify changes by first running the unit tests, then the CLI smoke tests:
 
 ```bash
 # Quick smoke test — should exit 0 (queries are canonically equivalent)
