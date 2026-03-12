@@ -1,7 +1,8 @@
 import unittest
 from sql_compare import (
     canonicalize_joins, clause_end_index, tokenize,
-    strip_sql_comments, top_level_find_kw, uppercase_outside_quotes,
+    strip_sql_comments, uppercase_outside_quotes,
+    top_level_find_kw,
 )
 
 class TestCanonicalizeJoins(unittest.TestCase):
@@ -266,6 +267,15 @@ class TestStripSqlComments(unittest.TestCase):
         sql = "SELECT /**/ * FROM my_table;"
         expected = "SELECT  * FROM my_table;"
         self.assertEqual(strip_sql_comments(sql), expected)
+    def test_comment_like_sequences_in_strings(self):
+        """Ensures comment-like sequences in string literals are not stripped."""
+        with self.subTest("Line comment in string"):
+            sql = "SELECT 'This is -- not a comment' FROM my_table;"
+            self.assertEqual(strip_sql_comments(sql), sql)
+
+        with self.subTest("Block comment in string"):
+            sql = "SELECT 'This is /* not a comment */' FROM my_table;"
+            self.assertEqual(strip_sql_comments(sql), sql)
 
 
 class TestUppercaseOutsideQuotes(unittest.TestCase):
@@ -311,23 +321,66 @@ class TestUppercaseOutsideQuotes(unittest.TestCase):
 
 
 class TestTopLevelFindKw(unittest.TestCase):
-    def test_ignores_keyword_in_various_contexts(self):
-        """Tests that keywords are ignored inside quotes, brackets, and parentheses."""
-        test_cases = [
-            ("single_quotes", "SELECT 'WHERE' AS w FROM t WHERE id = 1", "WHERE"),
-            ("double_quotes", 'SELECT "FROM" AS col FROM t', "FROM"),
-            ("brackets_and_backticks", "SELECT [WHERE], `WHERE` FROM t WHERE x = 1", "WHERE"),
-            ("parentheses", "SELECT id FROM (SELECT 1 AS x WHERE 1 = 1) sub WHERE id = 1", "WHERE"),
-        ]
+    def test_finds_top_level_keyword(self):
+        """Should find a keyword at the top level."""
+        sql = "SELECT a FROM t WHERE a = 1"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), sql.index("WHERE"))
 
-        for name, sql, keyword in test_cases:
-            with self.subTest(name=name):
-                self.assertEqual(top_level_find_kw(sql, keyword), sql.rindex(keyword))
+    def test_keyword_inside_single_quotes_ignored(self):
+        """Keyword inside single-quoted string should not match."""
+        sql = "SELECT 'WHERE' FROM t"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
 
-    def test_start_offset_finds_next_top_level_keyword(self):
-        sql = "SELECT * FROM t WHERE a = 1 ORDER BY a"
-        where_idx = top_level_find_kw(sql, "WHERE")
-        self.assertEqual(top_level_find_kw(sql, "ORDER", start=where_idx), sql.index("ORDER"))
+    def test_keyword_inside_double_quotes_ignored(self):
+        """Keyword inside double-quoted identifier should not match."""
+        sql = 'SELECT "WHERE" FROM t'
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_inside_brackets_ignored(self):
+        """Keyword inside bracket-quoted identifier should not match."""
+        sql = "SELECT [WHERE] FROM t"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_inside_backticks_ignored(self):
+        """Keyword inside backtick-quoted identifier should not match."""
+        sql = "SELECT `WHERE` FROM t"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_inside_subquery_ignored(self):
+        """Keyword inside parenthesized subquery should not be treated as top-level."""
+        sql = "SELECT * FROM (SELECT * FROM t WHERE id = 1) sub"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_keyword_after_subquery_found(self):
+        """Keyword after a subquery (at top level) should still be found."""
+        sql = "SELECT * FROM (SELECT * FROM t WHERE id = 1) sub WHERE sub.x = 2"
+        expected = sql.rindex("WHERE")
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), expected)
+
+    def test_start_offset_skips_earlier_occurrence(self):
+        """Using start offset should skip keyword occurrences before start."""
+        sql = "SELECT a FROM t WHERE a = 1 ORDER BY a"
+        where_idx = sql.index("WHERE")
+        order_idx = sql.index("ORDER")
+        # Starting after WHERE should not find WHERE again
+        self.assertEqual(top_level_find_kw(sql, "WHERE", start=where_idx + 1), -1)
+        # Should find ORDER BY from the beginning
+        self.assertEqual(top_level_find_kw(sql, "ORDER", start=0), order_idx)
+
+    def test_not_found_returns_minus_one(self):
+        """Should return -1 when keyword is not present."""
+        sql = "SELECT a FROM t"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), -1)
+
+    def test_case_insensitive(self):
+        """Should match keyword regardless of case in SQL."""
+        sql = "select a from t where a = 1"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), sql.index("where"))
+
+    def test_quoted_string_with_escaped_quote_then_keyword(self):
+        """Escaped quotes inside string should not break parsing; keyword after string is found."""
+        sql = "SELECT 'it''s fine' WHERE x = 1"
+        self.assertEqual(top_level_find_kw(sql, "WHERE"), sql.index("WHERE"))
 
 
 class TestSecurity(unittest.TestCase):
